@@ -1,35 +1,53 @@
-from fastapi import FastAPI
-from supabase import create_client
-import os
-from dotenv import load_dotenv
+from fastapi import FastAPI, Depends, HTTPException
+from sqlalchemy.orm import Session
+from .database import Base, engine, get_db
+from .models import VehicleType, Vehicle, Booking
 
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
-
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY")
-
-print("Supabase URL:", SUPABASE_URL)
-print("Supabase Anon Key:", SUPABASE_ANON_KEY)
-
-supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+# Create tables if they don't exist
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Vehicle Rental API")
 
+# ------------------ VEHICLE TYPES ------------------
+@app.get("/vehicle-types")
+def get_vehicle_types(db: Session = Depends(get_db)):
+    types = db.query(VehicleType).all()
+    return types
+
+@app.get("/vehicle-types/{type_id}")
+def get_vehicle_type(type_id: int, db: Session = Depends(get_db)):
+    vtype = db.query(VehicleType).filter(VehicleType.id == type_id).first()
+    if not vtype:
+        raise HTTPException(status_code=404, detail="Vehicle type not found")
+    return vtype
+
+# ------------------ VEHICLES ------------------
+@app.get("/vehicles")
+def get_vehicles(db: Session = Depends(get_db)):
+    vehicles = db.query(Vehicle).all()
+    return vehicles
+
+@app.get("/vehicles/{vehicle_id}")
+def get_vehicle(vehicle_id: int, db: Session = Depends(get_db)):
+    vehicle = db.query(Vehicle).filter(Vehicle.id == vehicle_id).first()
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    return vehicle
+
+# ------------------ BOOKINGS ------------------
+@app.get("/bookings")
+def get_bookings(db: Session = Depends(get_db)):
+    bookings = db.query(Booking).all()
+    return bookings
+
+@app.get("/bookings/{booking_id}")
+def get_booking(booking_id: int, db: Session = Depends(get_db)):
+    booking = db.query(Booking).filter(Booking.id == booking_id).first()
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    return booking
+
+# Root endpoint
 @app.get("/")
 def root():
-    return {"message": "API is running"}
-
-@app.get("/vehicle-types")
-def get_vehicle_types():
-    data = supabase.table("VehicleTypes").select("*").execute()
-    return data.data
-
-@app.get("/vehicles")
-def get_vehicles():
-    data = supabase.table("Vehicles").select("*").execute()
-    return data.data
-
-@app.get("/bookings")
-def get_bookings():
-    data = supabase.table("Bookings").select("*").execute()
-    return data.data
+    return {"message": "Vehicle Rental API is running"}
